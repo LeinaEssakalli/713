@@ -1,0 +1,570 @@
+---
+title: "Problem Set 4 - Data-Wrangling and Tests"
+author: "Leina Essakalli"
+date: "9/26/2019"
+output: html_document
+---
+
+
+
+
+# Overview
+
+## Learning objectives
+
+After attending lecture and upon completion of this problem set you should be able to do the following: 
+
+From Lecture 7:
+
+* format data into a "tidy" system
+* recognize and create tall vs. wide data frames
+
+From Lecture 8:
+
+* write unit tests
+* profile scripts and functions
+* use IDE and R debugging tools
+
+
+
+## Instructions:
+
+You are to complete and **upload the Rmd and knitted HTML** of this problem set on to Canvas by _9:44 AM on October 3, 2019_.
+For more information on Rmd files and knitting, please consult the following tutorial from [RStudio](https://rmarkdown.rstudio.com/articles_intro.html) or the [Introduction to R Markdown](https://canvas.harvard.edu/courses/57521/pages/introduction-to-r-markdown) tutorial the TAs have prepared.
+We will also be grading your use of git and GitHub, so please make sure to commit at appropriate times, push to GitHub at the end, and follow the instructions in Problem 3.
+It is recommended that you have a separate directory within your repository for each problem set.
+
+For the problem set, code should be in the `{r code_#.#.#}` code chunks and text answer should be in the `txt` blocks.
+Below is an example:
+
+```{r code_0.0.9000}
+# CODE 0.0.9000
+df <- cars[1:5, ]
+nrow(df)
+```
+
+```txt
+ANSWER 0.0.9000:
+  There are 5 rows in the new data set `df`
+```
+
+If you have any pressing issues, please post on the appropriate Canvas discussion page. 
+
+### Some notes on completing and submitting a Problem Set
+
+* Do *not* change the R chunk header information (everything within `{r ... }`).
+* Enter answers into a copy of the R Markdown Problem Set assignment.
+* Only include the final code that you want graded; remove personal notes and `View(some_df)`.
+* Do **not** print out long variables (they create mile-long HTML files).
+* Make sure to submit the R Markdown *and* the knitted-HTML.
+* A file file paths should be relative to your .Rproj file for the Problem Set. **No absolute paths - you will lose points.**
+
+**N.B.** Some of the questions in this problem set are purposefully vague or open-ended.
+Our goal is to transition from verbose, step-by-step instructions, to more naturally-phrased questions. 
+When the TAs grade the problem set, we will look for logical, reasonable, and accurate responses.
+For example, in question 2.2.2, we tell you what we want the graph to present to the viewer about the data, but not exactly how to do it.
+Please ask a TA or post a message on the Discussions page if you have any questions or concerns.
+
+
+
+## Problem 1 - Those were some old babies! (45 pts)
+
+### 1.1 - Let's get ready to wrangle! (10 pts)
+
+To begin this problem set, we will sort out those (supposedly) 200-year old babies.
+Of course, the babies are not 200 years old, but instead, this was a method used by the data collectors to record the age of baies in *months*. 
+Therefore, the number is actually the age in months of the baby prefixed by a "2" (eg. a baby of age "210" is actually 10 months old).
+
+**1.1.1** (1 pt) Load in the 'tidyverse' package.
+You may include it in the provided chunk below, or in the `setup` code chunk at the top, underneath the code that is already there.
+This is a common place to put comands to load libraries because it is always run at the beginning.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(magrittr)
+library(tidyverse)
+#install.packages('janitor')
+library(janitor)
+```
+
+**1.1.2** (6 pts) Create a function called `read_data()` that reads in a data file and uses a function from the 'janitor' package to clean the column names (we are leaving this purposefully vague so that you need to do a bit of poking around in the [doc](https://github.com/sfirke/janitor) for 'janitor' to find a usefull functio for this task).
+`read_data()` should take one parameter that is the file path and return a tibble (a form of data frame that the 'tidyverse' likes - it stands for "tidy table").
+Before reading in the data file, have `read_data()` use an if statement to check if the file exists (`file.exists()`); if it doesn't use the `stop()` function to throw an error with a useful message (such as "Your file does NOT exists!").
+Lastly, include a comment above the declaration of your function with a brief description of what it does.
+
+```{r code_1.1.2}
+# code 1.1.2
+#read_data function takes in 1 argument- path, which is the path of the file we want to read 
+#if the file doesnt exist it will return an error message Your file does NOT exists!
+#if the file exist it will read the file and clean 
+read_data <- function(path){
+  if(file.exists(path)==FALSE){
+    stop("Your file does NOT exists!")
+  }
+  
+  else {
+    data<- read_delim(path,delim = '\t') 
+    data<- clean_names(data)
+    return(data)
+  }
+}
+
+```
+
+
+
+
+**1.1.3** (3 pts) Finally, use `read_data()` to read in the "neiss_fmt.txt" file and assign it to a variable called `neiss_fmt`.
+(Remember to use a *relative* file path.)
+State which function from 'janitor' you used, and describe one change that your function from the 'janitor' package does to the data your `read_data()` function reads in.
+
+```{r code_1.1.3}
+# code 1.1.3
+neiss_fmt<-read_data("../Problemset2/lesson-04_data_files_copy/neiss_fmt.txt")
+```
+
+```txt
+Answer 1.1.3
+  a) Function from 'janitor' package:
+  clean_names
+  b) Describe a change that the 'janitor' function made:
+  produces snake_case for the col names
+  
+```
+
+
+### 1.2 - The Vectorization Sensation
+
+**1.2.1** (4 pts) The first two rows of `neiss_fmt` do not mean much to us - the first is for "unknown" ages, the second is just descriptive - so please remove them.
+Also, we are only insterested in the formatting of the two year olds.
+Filter on the "Format Name" column to keep only the relevant information.
+
+```{r code_1.2.1}
+# code 1.2.1
+#drop the first 2 rows filter(row_number() > 2) 
+#we are only insterested in the formatting of the two year olds -- filter(format_name=='AGELTTWO' )
+neiss_fmt<- neiss_fmt %>% filter(format_name=='AGELTTWO' ) %>% filter(row_number() > 2)
+```
+
+**1.2.2** (8 pts) We next want to convert the age format used by NEISS for babies less that two years old to years. 
+We will do this in pieces. First, create a function called `agelttwo_to_year()` that takes a single paramter called `neiss_date`. 
+In the function, figure out a way of turning the "2##" format that `neiss_date` is in into years (as a decimal).
+Another requirement for your function is that it can accept the input as either a numeric *or* a string.
+Therefore, the first step of `agelttwo_to_year()` should convert the `neiss_date` input into a numeric value." 
+
+```{r code_1.2.2}
+# code 1.2.2
+
+agelttwo_to_year <- function(neiss_date){
+  neiss_date<-as.numeric(neiss_date) #convert into numeric value
+  month_as_digit<-neiss_date-200 #if we have 230 this will be 30 - number of month
+  year<-month_as_digit/12
+  return(year)
+}
+class(neiss_fmt$starting_value_for_format) #check 
+agelttwo_to_year(neiss_fmt$starting_value_for_format) #check
+
+
+```
+
+**1.2.3** (6 pts) Let's quickly test your `agelttwo_to_year()` function using the 'testthat' package.
+Below are a few links for further information on using 'testthat'.
+
+* [brief tutorial](https://kbroman.org/pkg_primer/pages/tests.html)
+* [complete documentation](https://cran.r-project.org/web/packages/testthat/testthat.pdf)
+* [documentation website](https://testthat.r-lib.org)
+
+We have provided the general framework for writing a unit test with 'testthat' along with three example tests.
+Further, we have included a test that will fail.
+Uncomment it and run the code chunk to see what a failed test looks like.
+Read the message that 'testthat' provides - it tells you exactly what has broken giving "future you" more information when an old script stops running for some reason.
+Why did that test fail?
+Please add a three more test using three different `expect_*()` functions from 'testthat'.
+
+(Please chage `eval = FALSE` to `eval = TRUE` for 1.2.3 when you get to this question.)
+
+```{r code_1.2.3, eval = TRUE}
+# NB: You may need to install this if it throws the following error:
+# " Error in library(testthat) : there is no package called ‘testthat’ "
+library(testthat)
+
+# code 1.2.3
+test_that("The NEISS age for infants is correctly converted to years", {
+  # some example test statements
+  expect_equal(agelttwo_to_year(200), 0)
+  expect_equal(agelttwo_to_year("200"), 0)
+  expect_warning(agelttwo_to_year("This cannot be converted to a numeric value."))
+  #expect_error(agelttwo_to_year("This cannot be converted to a numeric value."))
+  
+  
+  # PUT YOUR TESTS HERE:
+  expect_equivalent(agelttwo_to_year(206), 0.5) 
+  expect_equal(agelttwo_to_year(210), 10/12)
+  #the next line will throw an error 
+  #expect_equal(agelttwo_to_year(210), 0.5)
+})
+```
+
+```txt
+Answer 1.2.3
+
+Errors - 
+expect_error(agelttwo_to_year("This cannot be converted to a numeric value."))
+Error: Test failed: 'The NEISS age for infants is correctly converted to years' * `agelttwo_to_year("This cannot be converted to a numeric value.")` did not throw an error.
+
+
+expect_equal(agelttwo_to_year(210), 0.5)
+  Error: Test failed: 'The NEISS age for infants is correctly converted to years' * agelttwo_to_year(210) not equal to 0.5. 1/1 mismatches [1] 0.833 - 0.5 == 0.333
+
+```
+
+**1.2.4** (11 pts) We next want to use the `mutate()` function from 'dplyr' to add a column called "age_in_years" from the coded baby ages.
+When we use `mutate()`, we can treat the columns of the input data table as variables that are just vectors containing their data.
+Therefore, we would like to use the following command to add the new column:
+
+```{r example_01, eval=FALSE}
+# example 01
+ neiss_fmt %>%
+    mutate(age_in_years = agelttwo_to_year(starting_value_for_format))
+
+```
+
+This means, however, that the `agelttwo_to_year()` function must be "vectorized", that is, it takes in a vector, performs an operation on all other values, and returns the transformed vector.
+Create another function called `agelttwo_to_year_vectorized()` (that also takes a single parameter called `neiss_date`) that performs the desired transformation of the NEISS "2##" data format to years but can take a *vector* of dates.
+Also, use the provided framework to write 3 tests for your function (two examples have been provided).
+
+(Please chage `eval = FALSE` to `eval = TRUE` for 1.2.4 when you get to this question.)
+
+```{r code_1.2.4, eval = TRUE}
+# code 1.2.4
+
+agelttwo_to_year_vectorized<-function(neiss_date){
+  neiss_date<-as.numeric(neiss_date) #convert into numeric value
+  month_as_digit<-neiss_date-200 #if we have 230 this will be 30 - number of month
+  year<-month_as_digit/12
+  year<-c(year) #vector
+  return(year)
+  
+}
+
+# tests for `agelttwo_to_year_vectorized`
+test_that("Ages can be converted in a vectorized form.", {
+  # some example test statements
+  expect_equal(agelttwo_to_year_vectorized(c(200, 206, 212)), c(0, 0.5, 1.0))
+  expect_length(agelttwo_to_year_vectorized(201:300), 100)
+  
+  # PUT YOUR TESTS HERE
+  expect_length(agelttwo_to_year_vectorized(100:119), 20) 
+  expect_equal(agelttwo_to_year_vectorized(c(206,210,220,212)), c(0.5,10/12,20/12,1))
+  expect_length(agelttwo_to_year_vectorized(200:245), 46) 
+  #THE NEXT LINE,UNCOMMENTED WILL THROW AN ERROR
+  #expect_length(agelttwo_to_year_vectorized(200:245), 45) 
+  
+})
+
+```
+
+**1.2.5** (6 pts) Now that we have a vectorized function for converting the NEISS format for the age of babies, we can create a data frame that has the original format in one column and the converted age in another.
+From the `neiss_fmt` tibble, select only the column with the "2##" values and use mutate and `agelttwo_to_year_vectorized()` to add a new column called "age_in_years". 
+Assign this new table to the variable `agelttwo`; it should have two columns in the end, one with the NEISS format for ages less than two, and the other ("age_in_years") with the age converted to years.
+Print out the first few lines of `agelttwo` using the `head()` function.
+
+```{r code_1.2.5}
+# code 1.2.5
+agelttwo<- neiss_fmt %>% select(starting_value_for_format) %>% mutate(age_in_years = agelttwo_to_year_vectorized(starting_value_for_format))
+head(agelttwo)
+```
+
+**N.B.** Though this seems like a long way of converting the "2##" format into years, it is leveraging the efficient vectorization of R.
+Not only is this a very commonly used technique in the language, it is often very fast and resource efficient.
+Also, it "abstracts" away some of the complexity for a user: instead of having to think about vectors, we can think of the variables as single entities.
+The Tidyverse has embraced this concept throughout their packages to great success.
+
+
+
+## Problem 2 - More of the (seemingly) infinite Tidyverse (50 pts)
+
+### 2.1 - "NEISS"ly formatted data (25 pts)
+
+**2.1.1** (3 pts) Use the same code from Problem Set 3 (or 2) question 1.1.1 to collate the NEISS 2016 and 2017 data, joining information about the products, diagnoses, and bodyparts implicated in the injuries.
+*Do not use the `read_data()` function because it is different in this Problem Set than in 2 or 3.*
+Instead, use `read_tsv()` from the 'readr' package (part of 'tidyverse').
+You should end up with a tibble called `neiss` that has 762,104 rows and 23 columns.
+Use the `dim()` function to prove this.
+
+```{r code_2.1.1}
+# code 2.1.1
+
+neiss16 <- read_tsv('../Problemset2/lesson-04_data_files_copy/neiss2016.tsv') %>% 
+  mutate(Year = "2016")
+neiss17 <- read_tsv("../Problemset2/lesson-04_data_files_copy/neiss2017.tsv") %>% 
+  mutate(Year = "2017")
+neiss <- bind_rows(neiss16, neiss17) %>%
+    left_join(
+        read_tsv("../Problemset2/lesson-04_data_files_copy/products.txt"),
+        by = c("Product_1" = "Code")
+    ) %>%
+    left_join(
+        read_tsv("../Problemset2/lesson-04_data_files_copy/diagnoses.txt"),
+        by = c("Diagnosis" = "Code")
+    ) %>% 
+    left_join(
+        read_tsv("../Problemset2/lesson-04_data_files_copy/bdypt.txt"),
+        by = c("Body_Part" = "Code")
+    )
+dim(neiss)
+# 762104     23 output - ok 
+
+```
+
+**2.1.2** (4 pts) Join the `agelttwo` data frame to your new `neiss` data to add the "age_in_years" column (make sure to use the appropriate `*_join()` function). What are the values of "age_in_years" for patients who were older than two?
+
+```{r}
+# code 2.1.2
+neiss<- neiss %>% left_join(agelttwo, by=c("Age" = "starting_value_for_format"))
+print(dim(neiss)) #expect 762104     24
+head(neiss)
+
+```
+
+
+```txt
+Answer 2.1.2
+For the patients older then 2 age_in_years will be NA 
+I created a test data set to vizulisate the cases where the age_in_years is not NA (Younger than 2 years) to make sure we have the expected values 
+
+```
+```{r}
+test <- neiss %>% filter (!is.na(age_in_years))
+test
+```
+
+
+**2.1.3** (4 pts) We now want to move the "age_in_years" data for the two year olds to the "Age" column.
+Use `ifelse()` within `mutate()` to accomplish this.
+Below is an example of using `ifelse()` - notice how it is vectorized!
+More examples can be found in the documentation (`?ifelse`).
+
+```{r example_02}
+# example 02
+a = c(5,7,2,9)
+ifelse(a %% 2 == 0,"even","odd")
+
+some_var <- 3:9
+ifelse(some_var == 7, some_var**2, some_var / 2) 
+```
+
+```{r code_2.1.3}
+# code 2.1.3
+neiss <- neiss %>% mutate(Age= ifelse(Age<200,Age,age_in_years))
+
+#Age<200 is the condition - if its fullfiled replace the entry of Age by the value of the entry in Age(so dont change it-basically does noting) ,  if not fullfilled - it correspond to an age>200 in that case replace it with the corresponding entry from the colage_in_years
+
+```
+
+```{r}
+#once again lets check 
+test2 <- neiss %>% filter (!is.na(age_in_years))
+test2
+
+```
+
+**2.1.4** (3 pts) Now plot a histogram of the "Age" column in `neiss`.
+
+```{r code_2.1.4}
+# code 2.1.4
+hist(neiss$Age)
+```
+
+**2.1.5** (5 pts) There is still a population in our data set with an unexpected age, but this time it isn't as obvious as the ancient babies.
+Identify this weird age group (describe why this population is unexpected in the text portion of the answer) and remove them from `neiss`.
+*(Hint: Think back to the two rows we removed from `neiss_fmt`.)*
+
+```{r code_2.1.5}
+# code 2.1.5
+summary1<-neiss%>% group_by(Age) %>% summarize(count= n())
+summary1
+neiss <- neiss %>% filter(Age!=0)
+neiss
+#check that the is no element with age = 0 
+summary2<-neiss%>%group_by(Age)%>% summarise(count= n())
+summary2
+
+```
+
+```txt
+Answer 2.1.5
+The weird group age is when Age =0 in the original neiss_fmt it correspond to the UNK -  I first have to delete those 69 elements
+```
+
+**2.1.6** (6 pts) The last step in our preparation of the `neiss` data is to assign labels to groups.
+The three age groups are:
+
+* "infant": less than 2
+* "pediatric_adolescent": from 2 (inclusive) to 20
+* "adult": 20 (inclusive) to 65
+* "sr_citizen": 65 (inclusive) and over
+
+Previously (in Problem Set 2), we added these labeles by making a bunch of intermediate data frames and then binding them back together.
+This is inefficient and requires a lot of duplicate code.
+Adding labels like this is very common and is when `case_when()` really shines.
+It is a bit strange of a function, so use the example below to get a feel for how to use it (feel free to experiment around with the example).
+
+```{r example_03, eval=FALSE}
+# example 03
+df <- as_tibble(mtcars) %>% select(mpg, cyl, gear)
+print(head(df))
+df %>% mutate(
+  mpg_rating = case_when(
+    mpg < 15 ~ "bad",
+    mpg < 25 ~ "medium",
+    TRUE ~ "great!"
+  ))
+```
+
+Use `mutate()` and `case_when()` to add a new column "age_group" with the values listed above based on the patients age (in the `Age` column).
+
+```{r code_2.1.6}
+# code 2.1.6
+
+summarytest<-neiss%>%group_by(Age)%>% summarise(count= n())
+summarytest
+
+neiss<- as_tibble(neiss)  %>% mutate(
+  age_group = case_when(
+    Age < 2 ~ "infant",
+    Age>=2 & Age< 20  ~ "pediatric_adolescent",
+    Age>=20 & Age<65  ~ "adult",
+    Age >= 65 ~ "sr_citizen"
+    
+  ))
+
+
+summary4<-neiss%>%group_by(age_group)%>% summarise(count= n())
+summary4
+
+```
+
+```{r}
+#we actually dont need the age_in_years anymore
+
+neiss<- neiss %>% select(-c(age_in_years))
+neiss
+```
+
+
+### Problem 2.2 Falling for data analysis (25 pts)
+
+In this section, we will practice some of techniques we have learned for organizing data frames to inspect the injuries relating to falling.
+
+**2.2.1** (6 pts) Collect the relevant injuries using a regular expression to filter for "fall" in the "Narrative_1" column of `neiss`.
+There are other terms that could be associated with falling - include (at least) two other relevant terms in your filtering.
+Save the filtered data frame to `fall_injuries`.
+How many unique cases (`CPSC_Case_Number`) do you have for falls?
+
+```{r code_2.2.1}
+# code 2.2.1
+fall_injuries <- neiss %>%
+filter(str_detect(Narrative_1, regex(c("fall","fell","collapse","slip"),ignore_case = TRUE))==TRUE)
+fall_injuries
+
+```
+```{r}
+unique_CPSC_Case_Number<-fall_injuries%>% group_by(CPSC_Case_Number) %>% summarize(count=n())  
+
+print(nrow(unique_CPSC_Case_Number))
+```
+
+```txt
+Answer 2.2.1
+76373
+```
+
+**2.2.2** (6 pts) Make a plot using 'ggplot2' that visualizes the differences in the occurence of fall-related injuries per sex and age group.
+This is purposefully vague - we want you to be able to go from thinking about the plot you want to actually coding it.
+You may need to further manipulate your `fall_injuries` data frame before plotting it - do not save these changes to the `fall_injuries` variable because we will be using it again.
+Please remove the unknown values in "Sex" and replace the numeric values with "M" and "F", appropriately.
+Save your plot to the variable `age_sex_plot` and then display the plot at the end of the code chunk.
+
+```{r code_2.2.2}
+# code 2.2.2
+sex_test<-fall_injuries%>% group_by(Sex) %>% summarize(count=n())  
+sex_test
+#lets remove the 0 
+modified_data_sex <- fall_injuries %>% filter(Sex != 0) %>% mutate(Sex=case_when(Sex ==1 ~ "M",
+                                                                                           Sex ==2 ~ "F"))
+sex_test<-modified_data_sex%>% group_by(Sex) %>% summarize(count=n())  
+sex_test  
+
+age_sex_plot <-modified_data_sex %>% 
+    ggplot()+
+    geom_bar(aes(x=age_group,fill=Sex))
+age_sex_plot
+
+```
+
+**2.2.3** (5 pts) Add (using the "+" operator) `theme()` to `age_sex_plot` and change 5 properties of your plot's theme.
+(You need not save you changes to the plot by re-assigning it to `age_sex_plot`.)
+
+```{r code 2.2.3}
+# code 2.2.3
+age_sex_plot <-modified_data_sex %>% 
+    ggplot()+
+    geom_bar(aes(x=age_group,fill=Sex))+
+    ggtitle("distribution of 'fall injuries' for the 4 age groups") +
+    theme(
+        legend.position = "top",
+        strip.background = element_blank(),
+        panel.background = element_rect(fill = "lightgrey"),
+        plot.title = element_text(color="red", size=14,face="bold.italic"),
+        axis.title.x= element_text(color="red"),
+        axis.title.y=element_text(color="red") ,
+        
+    )
+age_sex_plot
+```
+
+**2.2.4** (4 pts) Create another data frame, called `fall_injuries_summary`, that contains the average (mean) age of patients *and* the number of cases for each combination of product, and age group in `fall_injuries`.
+(Hint: The `summarise()` function can do multiple operations (eg. take the mean and count) in a single function call; see the examples in `?summarise`.)
+
+```{r code_2.2.4}
+#count_age_group = count(age_group)) 
+# code 2.2.4
+fall_injuries_summary <- fall_injuries%>% 
+                            group_by(age_group,Product_1)%>%                                                                                               summarize(mean_age = mean(Age),
+                          number_of_case_for_combination=n())
+fall_injuries_summary 
+#mean_age col is the mean age of each combination of age_group and Product_1
+```
+
+**2.2.5** (4 pts) Use the `spread()` function to make the `fall_injuries_summary` data table "wide" to show the number of cases for each age group per product (to be clear, we want the age group as the columns).
+The column with the average age will get in the way of your spread, so make sure to remove it first (`df %>% select(-col_name)` to drop a column).
+Print the first few lines of your wide data frame using `head()`.
+
+```{r code_2.2.5}
+# code 2.2.5
+
+wide_format<-fall_injuries_summary %>% select(-mean_age) %>% spread(age_group,number_of_case_for_combination)
+head(wide_format)
+```
+
+
+## Problem 3 - Submitting through GitHub (5 points)
+
+After you have completed your assignment and knitted the document for the last time, add and commit all of your files (especially the R Markdown for your submission and the knitted HTML) to your git repository and push to GitHub.
+Each commit has a unique identifier (that is how they are tracked simultaneously on your computer and online).
+We want the unique identifier of the commit with your final submission, but we cannot include it here because that would be a change to the file that you would then have to commit...
+Instead, please create an Issue titled "PSet 4 submission commit ID" and in the text of the Issue, inlcude the ID of your final commit (either the abbreviated or full ID, is fine) in the body of the Issue.
+
+---
+
+## Submission Reminders
+
+* Do not change the R chunk header information (everything within `{r ... }`).
+* Enter answers into a copy of the R Markdown Problem Set assignment.
+* Only include the final code that you want graded; remove personal notes and `View(some_df)`.
+* Do **not** print out long variables (they create mile-long HTML files).
+* Make sure to submit the R Markdown *and* the knitted-HTML.
+* A file file paths should be relative to your .Rproj file for the Problem Set. **No absolute paths - you will lose points.**
+

@@ -1,0 +1,416 @@
+---
+title: "Problem Set 5 - Distances, Dimension Reduction and Clustering"
+author: "Leina Essakalli Houssaini"
+date: "10/10/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(factoextra)
+library(lubridate)
+library(dendextend)
+library(gplots)
+```
+
+
+# Overview
+
+## Learning objectives
+
+After attending lecture and upon completion of this problem set you should be able to do the following: 
+
+From Lecture 9:
+
+* Preparing data for PCA
+* Running PCA to reduce dimensionality
+* Plotting summary statistics
+* Interpreting weights and correlations of variables with respect to PCs
+
+From Lecture 10:
+
+* Preparing data for clustering
+* Using hierarchical clustering
+* Plotting dendrograms
+* Interpreting clustering results
+
+
+## Instructions:
+
+You are to complete and **upload the Rmd and knitted HTML** of this problem set on to Canvas by _9:44 AM on October 10, 2019_.
+For more information on Rmd files and knitting, please consult the following tutorial from [RStudio](https://rmarkdown.rstudio.com/articles_intro.html) or the [Introduction to R Markdown](https://canvas.harvard.edu/courses/57521/pages/introduction-to-r-markdown) tutorial the TAs have prepared.
+We will also be grading your use of git and GitHub, so please make sure to commit at appropriate times, push to GitHub at the end, and follow the instructions in Problem 3.
+It is recommended that you have a separate directory within your repository for each problem set.
+
+For the problem set, code should be in the `{r code_#.#.#}` code chunks and text answer should be in the `txt` blocks.
+Below is an example:
+
+```{r code_0.0.9000}
+# CODE 0.0.9000
+df <- cars[1:5, ]
+nrow(df)
+```
+
+```txt
+ANSWER 0.0.9000:
+  There are 5 rows in the new data set `df`
+```
+
+If you have any pressing issues, please post on the appropriate Canvas discussion page. 
+
+### Some notes on completing and submitting a Problem Set
+
+* Do *not* change the R chunk header information (everything within `{r ... }`).
+* Enter answers into a copy of the R Markdown Problem Set assignment.
+* Only include the final code that you want graded; remove personal notes and `View(some_df)`.
+* Do **not** print out long variables (they create mile-long HTML files).
+* Make sure to submit the R Markdown *and* the knitted-HTML.
+* A file file paths should be relative to your .Rproj file for the Problem Set. **No absolute paths - you will lose points.**
+
+**N.B.** Some of the questions in this problem set are purposefully open-ended because we want you to practice not only working with data, but also interpreting it.
+When the TAs grade the problem set, we will look for logical, reasonable, and accurate responses. But remember: there is no single correct interpretation of the data!
+Please ask a TA or post a message on the Discussions page if you have any questions or concerns.
+
+
+## Problem 1 - Dimensionality reduction with PCA (40 pts)
+
+We want to know how age contributes to the prevalence of certain products in fall-related injuries — a PCA can help!
+
+### 1.1 - Getting the data in shape (16 pts)
+
+**1.1.1** (6 pts) Use the same code from Problem Set 4 (or 3 or 2) to collate the NEISS 2016 and 2017 data, joining information about the products, diagnoses, and bodyparts implicated in the injuries. (Remember to load the relevant packages first.)
+
+Filter this tibble to cases with a narrative containing the string "fall". (Unlike the last problem set, you don't have to account for other relevant terms.) How many cases do you find with this filter?
+
+```{r code_1.1.1}
+# code 1.1.1
+library(tidyverse)
+
+# 'read_data()' reads in the TSV file located at `file_path`
+read_data <- function(file_path) {       
+  raw_data <- read_tsv(file_path, col_types = cols())
+  return(raw_data)
+}
+
+neiss16 <- read_data("../Problemset2/lesson-04_data_files_copy/neiss2016.tsv") %>%  mutate(Year = "2016")
+neiss17 <- read_data("../Problemset2/lesson-04_data_files_copy/neiss2017.tsv") %>% mutate(Year = "2017")
+neiss <- bind_rows(neiss16, neiss17) %>%
+    left_join(
+        read_data("../Problemset2/lesson-04_data_files_copy/products.txt"), by = c("Product_1" = "Code")
+    ) %>%
+    left_join(
+        read_data("../Problemset2/lesson-04_data_files_copy/diagnoses.txt"),by = c("Diagnosis" = "Code")
+    ) %>% 
+    left_join(
+        read_data("../Problemset2/lesson-04_data_files_copy/bdypt.txt"),by = c("Body_Part" = "Code")
+    )
+dim(neiss)
+fall_injuries_data <- neiss %>% filter(str_detect(str_to_lower(Narrative_1), "fall"))
+dim(fall_injuries_data)
+```
+
+```txt
+Answer 1.1.1
+neiss ==> 762104     23
+fall_injuries_data==> 46752    23
+
+How many cases do you find with this filter?46752 
+
+```
+
+**1.1.2** (2 pts) We can categorize injuries by age intervals, but more finely than last time: infants (< 2), children (2-10), adolescents (11-19), 20-29, 30-39, 40-49, 50-59, 60-69, ... 100+. Add a column to the "fall"-filtered tibble with the appropriate age category for each row (using case_when). For age categories beyond adolescents, you can just use the range of ages as the name of the category (for example, "20-29").
+
+```{r code_1.1.2}
+# code 1.1.2
+fall_injuries_data <- fall_injuries_data %>% mutate(age_group = case_when(
+    Age >= 200 ~ "infant",
+    Age <= 10 ~ "children",
+    Age < 20 ~ "adolescent",
+    Age < 30 ~ "20-29",
+    Age < 40 ~ "30-39",
+    Age < 50 ~ "40-49",
+    Age < 60 ~ "50-59",
+    Age < 70 ~ "60-69",
+    Age < 80 ~ "70-79",
+    Age < 90 ~ "80-89",
+    Age < 100 ~ "90-99",
+    Age >=100 & Age<200 ~'100+'))
+```
+
+**1.1.3** (2 pts) Create another data table, called `fall_injuries_byage`, that contains the number of cases for each combination of product and age category.
+
+```{r code_1.1.3}
+# code 1.1.3
+fall_injuries_byage<- fall_injuries_data%>% group_by(Product, age_group) %>% 
+  summarise(count = n()) %>% 
+  ungroup()
+
+```
+
+```question 
+in the solution of pbset 4 question 2.2.4
+you use a last pipe 
+%>% 
+  ungroup()
+
+can you please explain what is the difference betwwen using it or no? - i tired both with and without and cant see a clear difference in the outputed dataframe
+```
+**1.1.4** (6 pts) Make the `fall_injuries_byage` data table "wide" to show the number of cases for each age group per product (the columns of the table should be age group, while the rows will be products). Fill any `NA` counts with 0s, and remove any rows with product names that are `NA`. Set the row names as the products, and remove the product column.
+
+Print the first few lines of your new data frame using `head()`.
+
+```{r code_1.1.4}
+# code 1.1.4
+fall_injuries_byage_wide <-  fall_injuries_byage %>% filter(!is.na(Product))%>% spread(age_group,count,fill=0) %>%  remove_rownames() %>% column_to_rownames(var="Product")  
+
+#col are age_group and rows will be product,each entry is a count - if the count is NA it will be replaced by 0 
+#I could also used filter(is.na(product)==FALSE) instead of filter(!is.na(Product))
+
+head(fall_injuries_byage_wide)
+dim(fall_injuries_byage_wide)
+```
+
+### 1.2 - PCA-ing into lower dimensions (24 pts)
+
+We want to identify principal components that summarize our age groups and represent our products in terms of these PCs, rather than age groups. Hopefully, this will give us a lower dimensional representation, instead of using all of our age groups.  
+
+**1.2.1** (2 pts) What variable should be the rows of our input to PCA? What variable should be the columns of our input to PCA? (One should be product, one should be age groups.)
+
+```txt
+Answer 1.2.1
+  Rows: The rows are the variables in this case its the products
+  Columns: the col are the samples in this case its the group age
+  
+```
+
+**1.2.2** (8 pts) Perform a PCA on this data, and save the resulting object as `fall_pca`. Be sure to first check that your data is numeric, and include the appropriate scaling and centering parameters. Look at the summary of `fall_pca`: How many PCs are calculated?
+
+```{r code_1.2.2}
+# code 1.2.2
+fall_pca<-prcomp(fall_injuries_byage_wide, scale = TRUE, center = TRUE)
+summary(fall_pca)
+#fall_pca
+```
+
+```txt
+Answer 1.2.2
+There are 12 age groups so 12 PC are calculated 
+```
+
+**1.2.3** (4 pts) Make a scree plot of this PCA object. Using this scree plot and/or the summary statistics, what is the minimum number of components required to capture at least 90% of the variation in the data?
+
+```{r code_1.2.3}
+# code 1.2.3
+fviz_eig(fall_pca,ncp = 3)
+fviz_eig(fall_pca,ncp = 12)
+```
+
+```txt
+Answer 1.2.3
+#PC1 caputres about 71.8%( 0.7183-value from the summary table above)-
+PC2 captures about 17.1% (0.1711)
+this combined is 88.9 
+PC3 captures about 5.48 % (0.05484)
+all these 3 pc combined capture 94.38 which is above 90 % 
+so we need at least 3 principal componements - scree plot with 3 componement shown above too 
+
+
+```
+
+
+**1.2.4** (6 pts) Plot a biplot of the contributions of each age group to the top two PCs. What is one thing you notice about how the contributions of the age groups are distributed across PC1 and PC2? (You can pick something that makes sense, or something surprising.) How might this be interpreted in the "real world" — that is, what is one hypothesis you might make about age and products involved in fall-related injuries?
+
+```{r code_1.2.4}
+# code 1.2.4
+fviz_pca_var (fall_pca,
+repel = TRUE # Make sure text doesn't overlap
+)
+
+```
+
+
+```txt
+Answer 1.2.4
+From the lecture notes I know that 
+
+
+•	Positively correlated vectors appear close together separated by only a small angle
+•	Orthogonal vectors (perpendicular) are unlikely to be correlated
+•	Vectors separated by nearly 180 degrees are negatively correlated.
+
+so in that case the 2 categories that are more unlikely to be correlated(almost orthogonal) are the Adolescent and the 100+ 
+
+Unsurprisingly the 100+ and the 90-99 categories are separated only by a very small angle and this is because the products that cause a  fall injuries for this population are very likely to be correlated- 
+which is a bit suprising is that the children categories and the 50-59 categories appear to be very correlatec and i dont really get how this can be the case-
+
+```
+
+**1.2.5** (4 pts) Plot a bar plot of $cos^2$ values for the top 5 products on each of the top two PCs (so, two barplots, each with 5 bars). Finish the following sentence: "A high $cos^2$ value along a PC means that the variable is: ______"
+
+```{r code_1.2.5}
+# code 1.2.5
+fviz_cos2(fall_pca,
+choice = "ind",
+axes = 1, #PC1
+top=5
+)
+
+fviz_cos2(fall_pca,
+choice = "ind",
+axes = 2, #PC2
+top=5
+)
+```
+
+```txt
+Answer 1.2.5
+A high $cos^2$ value along a PC means that the variable is: highly contribuating (to this precise PCA)
+ 
+```
+
+
+## Problem 2 — Clustering trends over time (40 pts)
+
+In addition to age, we're also interested in how injuries relate over time — do certain times of year have more (or less) similar fall-related injuries? To answer questions like this, we can use clustering to see how similar products are in terms of the months when they cause injuries (or vice versa).
+
+### 2.1 - Getting the data in shape (again) (16 pts)
+
+**2.1.1** (2 pts) Let's go back to the NEISS dataset filtered by falls. Add a column that contains the month for each case.
+
+```{r code_2.1.1}
+# code 2.1.1
+fall_injuries_data <- fall_injuries_data %>% mutate(month_of_treatement =month(mdy(Treatment_Date), label =T))
+
+```
+
+**2.1.2** (4 pts) This time, create another data table called `fall_injuries_bymonth`, that contains the number of cases for each combination of product and age category.
+
+```{r code_2.1.2}
+# code 2.1,2
+fall_injuries_bymonth<-fall_injuries_data%>%group_by(Product, month_of_treatement) %>%summarise(count = n()) 
+head(fall_injuries_bymonth)
+fall_injuries_bymonth<- as_tibble(fall_injuries_bymonth)
+```
+
+**2.1.3** (6 pts) Again, make the `fall_injuries_bymonth` data table "wide" to show the number of cases for each month per product (the columns of the table should be months, while the rows will be products). Fill any NA counts with 0s, and remove any rows with product names that are `NA`. Set the row names as the products, and remove the product column.
+
+Print the first few lines of your new data frame using `head()`.
+
+```{r code_2.1.3}
+# code 2.1.3
+fall_injuries_bymonth_wide<-fall_injuries_bymonth%>% filter(!is.na(Product))%>%spread(month_of_treatement,count,fill = 0)%>%remove_rownames()%>%column_to_rownames(var="Product")
+
+```
+
+
+
+**2.1.4** (4 pts) In order to cluster this data, we'll also need to normalize it. Use the normalizing function from Thursday's lecture to normalize the values in this data table.
+
+```{r code_2.1.4}
+# code 2.1.4
+normalize <- function(x){
+x <- (x-min(x))/(max(x)-min(x)) }
+
+fall_injuries_bymonth_wide<- t(apply(fall_injuries_bymonth_wide, 1,normalize))
+#check
+print(head(fall_injuries_bymonth_wide))#ok looks ok 
+```
+```
+to be honest i still dont understand the steps used here and why do we actually need to transpose - i tried to ask during the lecture but i still dont get why we need to do that (i used understood that it works when we do that and whitout the transpose we dont obtain the desired dataframe) - 
+```
+### 2.2 - Clusters, trees, and heatmaps (24 pts)
+
+Now it's time to cluster! We'll think about this data in two ways: 
+1) how similar products are based on the months when they cause injuries, 
+2) how similar months are in terms of the the products that cause injuries at that time.
+
+**2.2.1** (2 pts) First, compute euclidean distances between products.
+
+```{r code_2.2.1}
+# code 2.2.1
+dist_fall_injuries_bymonth_wide <- dist(fall_injuries_bymonth_wide, method="euclidean")
+
+```
+
+**2.2.2** (4 pts) Then, apply hierarchical clustering to the resulting distances. Plot a dendrogram of the results. (Tip: Include the line `par(cex = 0.3)` before the line with your `plot()` function. This will make the font smaller, so that you can actually sort of see the dendrogram.)
+
+```{r code_2.2.2}
+# code 2.2.2
+hclusters <- hclust(dist_fall_injuries_bymonth_wide)
+par(cex = 0.3)
+plot(hclusters)
+```
+
+**2.2.3** (6 pts) This is pretty hard to interpret, so it might be easier to find seasonal patterns by clustering the months, rather than the products. Re-calculate distances (except between months this time, instead of between products), cluster, and plot so that you end up with a dendrogram of months. (Hint: It should only require one change to your distance calculation!)
+
+```{r code_2.2.3}
+# code 2.2.3
+#this time we take the transpose of fall_injuries_bymonth_wide 
+transpose_fall_injuries_bymonth_wide=t(fall_injuries_bymonth_wide)
+
+#now the distance will be the distance between the months - which will allow me to then cluster by month 
+dist_month <- dist(transpose_fall_injuries_bymonth_wide, method="euclidean")
+hclust_month <- hclust(dist_month)
+plot(hclust_month)
+
+```
+
+**2.2.4** (6 pts) This looks like something we can understand! Use `cutree` to identify the two main clusters, and color the dendrogram of months by these labels. (Tip: Use `labels_colors` from the `dendextend` package)
+
+```{r code_2.2.4}
+# code 2.2.4
+two_main_clust <- cutree(hclust_month, 2)
+dendrogram_to_plot <- as.dendrogram(hclust_month)
+labels_colors(dendrogram_to_plot) <- c("green", "red")[two_main_clust]
+plot(dendrogram_to_plot)
+
+```
+
+**2.2.5** (6 pts) Finally, use `heatmap.2()` from the `gplots` library to plot a heatmap of this month data. (Tip: This function takes the original matrix that you used as input to `dist()`.) Set the appropriate parameter so that it only reorders/clusters the months, and not the products. How does the ordering/clustering of the months compare to what you found from the `hclust()` function? What are the two main clusters that we can identify, and how might we interpret this split?
+
+```{r code_2.2.5}
+# code 2.2.5
+heatmap.2(transpose_fall_injuries_bymonth_wide, Rowv = TRUE, Colv = F)
+
+```
+
+```txt
+Answer 2.2.5
+this heatmap is showing that AUG/JUL/JUN/MAY cluster together and the other months cluster together 
+using the previous method we found that using 2 clusters that AUG/JUL/JUN/MAY cluster together but also cluster with OCT/DEC/MAR/NOV
+AUG/JUL/JUN/MAY are summer months - the activities(swiming/waterskining/kayak etc) that might lead to a fall are different then the one in the rest of the year- 
+this split is more easy to interpret then the split obtained using hclust()
+  
+```
+
+## Problem 3: Looking ahead to the final project (10 points)
+
+In the last pset, you will build a Shiny app to interactively explore data. It might seem far away, but it's not too early to start thinking about it! In 2-3 sentences, tell us about at least one question you would like to explore in the NEISS data set, and what Shiny app features (e.g., data-wrangling, plots, analyses) might be useful to answer this question.
+
+```txt
+Answer 3
+Im really exiciting to use the shinny app - one function that I think can be very cool to implement here would be the interactive plot(that change their 'apparence' based on the parameters that the user is using to turn 'on or off')
+I might be interested in seeing if a particular race get a diagnosis more then another one - 
+I would have to clean the data for the cases where the race is unknwon and taking all the possible diagnostics see if there is any cluster in terms of race - 
+then using the shinny app we can focus on particular diagnosis and races- 
+
+
+```
+
+## Problem 4 - Submitting through GitHub (10 points)
+
+After you have completed your assignment and knitted the document for the last time, add and commit all of your files (especially the R Markdown for your submission and the knitted HTML) to your git repository and push to GitHub.
+Each commit has a unique identifier (that is how they are tracked simultaneously on your computer and online).
+We want the unique identifier of the commit with your final submission, but we cannot include it here because that would be a change to the file that you would then have to commit...
+Instead, please create an Issue titled "PSet 5 submission commit ID" and in the text of the Issue, inlcude the ID of your final commit (either the abbreviated or full ID, is fine) in the body of the Issue.
+
+---
+
+## Submission Reminders
+
+* Do not change the R chunk header information (everything within `{r ... }`).
+* Enter answers into a copy of the R Markdown Problem Set assignment.
+* Only include the final code that you want graded; remove personal notes and `View(some_df)`.
+* Do **not** print out long variables (they create mile-long HTML files).
+* Make sure to submit the R Markdown *and* the knitted-HTML.
+* A file file paths should be relative to your .Rproj file for the Problem Set. **No absolute paths - you will lose points.**

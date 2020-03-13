@@ -1,0 +1,387 @@
+---
+title: "Problem Set 2: Git, GitHub, and the Tidyverse"
+author: "Your name here"
+date: "9/12/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# Overview
+
+## Learning objectives
+
+After attending lecture and upon completion of this problem set you should be able to do the following: 
+
+From Lecture 3:
+
+* Create a project in RStudio
+* Understand the importance of version control
+* Use GitHub to organize and collaborate with others
+
+From Lecture 4:
+
+* Be able to create and use custom functions
+* Understand the importance of data cleaning
+* Understand fundamentals of sorting??
+
+
+## Instructions:
+
+You are to complete and **upload the Rmd and knitted HTML** of this problem set on to Canvas by _9:44 AM on September 19, 2019_.
+For more information on Rmd files and knitting, please consult the following tutorial from [RStudio](https://rmarkdown.rstudio.com/articles_intro.html) or the [Introduction to R Markdown](https://canvas.harvard.edu/courses/57521/pages/introduction-to-r-markdown) tutorial the TAs have prepared.
+We will also be grading your use of git and GitHub, so please make sure to follow the instructions all the way until the end of Problem 3.
+Code should be in the `{r #.#.#}` code chunks and text answer should be in the `txt` blocks.
+Below is an example:
+
+```{r}
+# CODE 0a
+df <- cars[1:5, ]
+nrow(df)
+```
+
+```txt
+ANSWER 0a:
+  There are 5 rows in the new data set `df`
+```
+
+If you have any pressing issues, please post on the appropriate Canvas discussion page. 
+
+## Problem 1: Git and GitHub (Total 25 pts)
+
+### 1.1 'Git'ting Started (25 pts)
+
+From previous lectures, you should have GitHub desktop installed (or be comfortable with using git from the command line) and a GitHub account.
+This problem set will be completed in a git repository and pushed to GitHub.
+This will be set-up in this first section of the problem set.
+
+**1.1.1** (6 pts) Open the GitHub desktop application and select "Create a New Repository on your Hard Drive..."; create the repository with the following parameters:
+
+* **Name:** `BMI713-student-2019-<your GitHub user name>`
+* **Description:** (optional) add a brief description about what the repository contains - you can always change this later
+* **Local Path:** select the location on your computer where you want to put the directory for this problem set
+* leave "Initialize this repository with a README" **unchecked**
+* **Git Ignore:** "R"
+* **License:** "None"
+
+What is the complete path name to your repository?
+
+```txt
+Answer 1.1.1
+/Users/admin/Desktop/Harvard/Courses/BMI 713/Course Materials/Problem Sets/BMI713-student-2019-jhrcook
+```
+
+**1.1.2** (6 pts) Within the GitHub desktop application, click "Publish repository" to create a remote repository on GitHub.com.
+Leave "Name" and "Description" as the defaults.
+Ensure that the box for **"Keep this code private"** is checked.
+Set "Organization" to 'hms-dbmi'. (If this option is not available, email a TA.)
+
+Go to the GitHub website and verify that you can see your new repository.
+What is the URL to this repository?
+
+```txt
+Answer 1.1.2
+https://github.com/hms-dbmi/BMI713-student-2019-jhrcook
+```
+
+**1.1.3** (10 pts) Make a subdirectory (ie. folder) within your repository called "Problem Set 2".
+Move your copy of the problem set R Markdown to this subdirectory in your new repository (you may want to close RStudio first so it doesn't freak out that a file it is showing is now gone).
+Commit this change in your repository with the message (or "Summary") "add problem set R Markdown".
+You may also add a "Description" for the commit if you want to include additional details about the change to repository.
+Push the changes to origin (ie. your GitHub repository online).
+
+How many files are visible in your GitHub repository online alongside your "Problem Set 2" directory?
+
+```txt
+Answer 1.1.3
+  2 (.gitignore, .gitattributes)
+```
+
+**1.1.4** (3 pts) Briefly (1-2 sentences), in your own words, what is the purpose of the gitignore (the `.gitignore`) file?
+
+```txt
+Answer 1.1.4
+  From git doc: "A gitignore file specifies intentionally untracked files that Git should ignore."
+```
+
+## Problem 2: Working with Files and Relational Data (Total 60 pts)
+
+### 2.1 Into the Tidyverse (1 pt)
+
+Install the 'tidyverse' package from CRAN and load it into R. Only provide the single line of code required for loading in the package. How many packages are in the Tidyverse? (Hint: use the `tidyverse::tidyverse_packages()` function.)
+
+```{r code_2.1}
+# Code 2.1
+# load 'tidyverse'
+library(tidyverse)  # with quotes around pkg name is fine
+
+# count the number of packages in the Tidyverse
+length(tidyverse::tidyverse_packages())
+```
+
+```txt
+Answer 2.1
+  26 (as of 2019-09-11)
+```
+
+(Not a bad time to commit - perhaps with a message like "PSet2 question 2.1 finished".)
+
+### 2.2 Fun with Data (29 pts)
+
+In Question 2.2, you will create a single data frame that contains the NEISS data from 2016 and 2017. Further, you will add the product, diagnosis, and body part information by joining multiple data sets.
+
+**2.2.1.** (3 pts) Create a function called `read_data` that takes a single parameter that is a path to a TSV file.
+`read_data()` should read in the data file and return a data frame (or tibble).
+Add a brief comment above the function definition to describe what `read_data()` does.
+
+```{r code_2.2.1}
+# Code 2.2.1
+# 'read_data()' reads in the TSV file located at `file_path`
+read_data <- function(file_path) {       
+  raw_data <- read_tsv(file_path)
+  return(raw_data)
+}
+```
+
+**2.2.2** (3 pts) Use the `read_data()` function to read in the 2016 and 2017 NEISS data into variables named `neiss16` and `neiss17`, respectively.
+*Using a forward-pipe operator*, add a column to each data frame called `Year` which contains the year of the data.
+Also read in the products, diagnoses, and body part data to variables named `products`, `diagnoses` and `bdypt`, respectively.
+
+```{r code_2.2.2}
+neiss16 <- read_data("lesson-04_data_files/neiss2016.tsv") %>% 
+  mutate(Year = "2016")
+neiss17 <- read_data("lesson-04_data_files/neiss2017.tsv") %>% 
+  mutate(Year = "2017")
+products <- read_data("lesson-04_data_files/products.txt")
+diagnoses <- read_data("lesson-04_data_files/diagnoses.txt")
+bdypt <- read_data("lesson-04_data_files/bdypt.txt")
+```
+
+**2.2.3** (3 pts) To conduct a comparative analysis between 2016 and 2017, create a single data frame called `neiss` by binding the rows of the data from the two years.
+Can you (quickly) confirm that the code successfully combined the data from the two data sets (hint: how should the number of rows sum)?
+Explain why your confirmation makes sense in the text portion of the answer.
+
+```{r code_2.2.3}
+# Code 2.2.3
+# bind the rows of the two years
+neiss <- bind_rows(neiss16, neiss17)
+
+# confirm bind worked
+nrow(neiss) == nrow(neiss16) + nrow(neiss17)
+```
+
+```txt
+Answer 2.2.3
+  The number of rows of combined data set should equal the sum of the two separate data sets.
+```
+
+**2.2.4** (10 pts) The next step is to merge the NEISS injury data with the products data set so that each injury is associated with a product.
+Which column in the `neiss` data frame is the first column to be related to a column in the `products` data frame?
+
+```txt
+Answer 2.2.4 part a
+     `neiss` column: "Product_1"
+  `products` column: "Code"
+```
+
+Using this relationship, join `neiss` and `products` in such a way as to keep the `neiss` data when a product code is not available, but *not* keep the product information when it is not found in the NEISS data.
+To begin, practice with just the first three rows of the `neiss` data frame and validate that it successfully merged the product information.
+Your validation should include checking the `products` data frame to ensure the correct information was related to `neiss`.
+
+```{r code_2.2.4.b}
+# Code 2.2.4 part b
+# merge a subset of `neiss` to `products`
+left_join(
+  neiss[1:3, ], products,
+  by = c("Product_1" = "Code")
+) %>%
+  select(CPSC_Case_Number, Treatment_Date, Product_1, Product)
+
+# check that the codes match up in `products`
+products %>% 
+  filter(Code %in% c(1645, 670, 1807))
+```
+
+Once you have demonstrated that your merge works with a subset of the NEISS data, conduct the full merge and save the results to the `neiss` variable. How many columns are now in the `neiss` data frame? Should the number of rows have changed?
+
+```{r code_2.2.4.c}
+# Code 2.2.4 part c
+neiss <- left_join(
+  neiss, products,
+  by = c("Product_1" = "Code")
+)
+```
+
+```txt
+Answer 2.2.4 part c
+  there are now 21 columns in `neiss`
+  the number of rows should NOT have changed
+```
+
+**2.2.5** (10 pts) Following a simillar process (you need not include the validation steps, though you may if you would like), merge in the data from `diagnoses` and `bdypt` to `neiss`, assigning the results to `neiss`. First, name the columns that relate each of these data frames to `neiss`
+
+```txt
+Answer 2.2.5 part a
+  related columns between `neiss` and `diagnoses`: "Diagnosis" - "Code"
+  related columns between `neiss` and `bdypt`: "Body_Part" - "Code"
+```
+
+```{r code_2.2.5.b}
+# Code 2.2.5 part b
+neiss <- left_join(neiss, diagnoses, by = c("Diagnosis" = "Code")) %>% 
+  left_join(bdypt, by = c("Body_Part" = "Code"))
+```
+
+How many columns does `neiss` have now?
+
+```txt
+Answer 2.2.5 part b
+  23 columns
+```
+
+(This is likely a good place for a commit.)
+
+### 2.3 - Exploring Exploratory Data Analysis (30 pts)
+
+In this section of the problem set, we will get some practice performing exploratory data analysis, an essential part of data science. First, we will discover and explain an unusual feature of the NEISS data. Then we will categorize the patients into age groups and further subcategorize by various other features.
+
+**2.3.1** (2 pts) Make a histogram of the age distribution in your NEISS data frame. What is strange about the results?
+
+```{r code_2.3.1}
+# Code 2.3.1
+hist(neiss$Age)
+```
+
+```txt
+Answer 2.3.1
+  There is a population of patients with an age above 200 years old.
+```
+
+**2.3.2** (2 pts) How many case are in this unexpected age group?
+
+```{r code_2.3.2}
+# Code 2.3.2
+sum(neiss$Age > 150, na.rm = TRUE)
+```
+
+```txt
+Answer 2.3.2
+  45,390 cases
+```
+
+**2.3.3** (2 pts) Why do these patients have such unexpected ages? (Hint: look at some of the other data files.)
+We will re-visit this after we learn about a few other features of the Tidyverse.
+
+```txt
+Answer 2.3.3
+  age 0 = unknown
+  age > 200 = < 2 year olds by coding
+```
+
+**2.3.4** (10 pts) Create three separate data frames by filtering `neiss` based on age.
+The three age ranges (one per data frame) should be from 2 (inclusive) to 20, 20 (inclusive) to 65, and 65 (inclusive) and over.
+*Make sure to not inlcude the strange data set from the previous question, though!*
+For each new data frame, add a column called `age_group` and assign each the following values, respectively: "pediatric_adolescent", "adult", and "sr_citizen".
+For each age range, the filtering step and adding a new column step should be linked to form a single pipe-line.
+The final step is to combine these three data frames back into one *using a single function call.*
+(Hint: see the functions in the [documentation for 'dplyr' functions](https://dplyr.tidyverse.org/reference/index.html), specifcially in the section "Two-table verbs" ).
+Call the final data frame `cohort`.
+
+```{r code_2.3.4}
+# Code 2.3.4
+pd_ad <- neiss %>%
+  filter(Age >= 2 & Age < 20) %>%
+  mutate(age_group = "pediatric_adolescent")
+adult <- neiss %>%
+  filter(Age >= 20 & Age < 65) %>%
+  mutate(age_group = "adult")
+sr_citizen <-neiss %>%
+  filter(Age >= 65 & Age < 150) %>%
+  mutate(age_group = "sr_citizen")
+cohort <- bind_rows(pd_ad, adult, sr_citizen)
+```
+
+How many data points did you have for each age range?
+
+```txt
+Answer 2.3.4
+  pediatric adolescent: 307,573
+                 adult: 291,025
+        senior citizen: 118,049
+```
+
+**2.3.5** (10 pts) Create a single pipe-line that counts the number of data points in `cohort` when grouping by age group, product, body part, and diagnosis.
+Save the resulting data frame to a variable called `subcategory_summary`.
+(Hint: you may want to use the `group_by()` and `summarise()` functions.)
+It may be helpful to use `View(cohort)`, `head(cohort)` or `colnames(cohort)` to decide which columns to group by.
+You will want to use columns that provide you "human-friendly" information (ie. not code numbers).
+List the names of the columns you are grouping by; there should be one for age group, product, body part, and diagnosis.
+
+```txt
+Answer 2.3.5
+   age group: "age_group"
+     product: "Product"
+   body part: "BDYPT"
+   diagnosis: "Diagnosis.y"
+```
+
+```{r code_2.3.5}
+# Code 2.3.5
+subcategory_summary <- cohort %>%
+  group_by(age_group, Product, Diagnosis.y, BDYPT) %>% 
+  summarise(num_data_points = n()) %>%
+  ungroup()
+
+# alternative method
+subcategory_summary <- cohort %>% 
+  count(age_group, Product, Diagnosis.y, BDYPT, name = "num_data_points")
+```
+
+**2.3.6** (2 pts) Using the `subcategory_summary` data frame, what was the most common injury for each age group?
+(Hint: you may want to use `group_by()` along with the `top_n()` function.)
+
+```{r code_2.3.6}
+# Code 2.3.6
+subcategory_summary %>% 
+  group_by(age_group) %>% 
+  top_n(1, num_data_points)
+```
+
+In words, describe the top injuries from each age range over 2016 and 2017.
+
+```txt
+Answer 2.3.6
+  Adults tended to cut their fingers with knives.
+  Children often sprained their ankles while playing basketball.
+  Seniors demonstrated a propensity to sustain internal head damage from floors.
+```
+
+**2.3.7** (2 pts) Write out (save) a single CSV with the top 5 most common injuries for each age group in your `subcategory_summary` data frame called "Neiss_summary_16_17.csv".
+
+```{r code_2.3.7}
+# Code 2.3.6
+subcategory_summary %>% 
+  group_by(age_group) %>%
+  top_n(5, num_data_points) %>%
+  write_csv("Neiss_summary_16_17.csv")
+```
+
+(Remain 'commit'ed to version tracking.)
+
+## Problem 3: Submitting through GitHub (15 points)
+
+After you have completed your assignment and knitted the document for the last time, add and commit all of your files (especially the R Markdown for your submission, the knitted HTML, and your output from problem 2.3.6) to your git repository and push to GitHub.com.
+Each commit has a unique identifier (that is how they are tracked simultaneously on your computer and online).
+Below are screenshots of what your commit ID should look like on the GitHub desktop application and GitHub online.
+
+![](misc/git_uuid_for_submission.jpg)
+
+![](misc/githubcom_commit_id.jpg)
+
+We want the unique identifier of the commit with your final submission, but we cannot include it here because that would be a change to the file that you would then have to commit...
+Instead, we will take this as an opporutinuty to learn about "Issues" on GitHub (the online version).
+Issues are way to submit bug-reports or feature requests to a developer of a project.
+Please create an Issue titled "Submission commit ID" and in the text of the Issue, inlcude the ID of your final commit (either the abbreviated or full ID, is fine) in the body of the Issue.

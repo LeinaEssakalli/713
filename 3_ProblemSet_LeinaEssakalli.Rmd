@@ -1,0 +1,457 @@
+---
+title: "Problem Set 3: Data visualization"
+author: "Leina ESSAKALLI "
+date: "9/21/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+library(ggraph)
+library(devtools)
+library(readr)
+library(lubridate)
+library (tidygraph)
+
+```
+```
+
+# Overview
+
+## Learning objectives
+
+After attending lecture and upon completion of this problem set you should be able to do the following: 
+
+From Lecture 5:
+
+* Use 'dplyr' to modify data frames/tibbles
+* Use 'ggplot2' to create plots of interesting trends in the data
+* Modify plots' geometric objects, scales, labels, etc.
+
+From Lecture 6:
+
+* Understand how graphs can be used to understand connections within the data
+* Use 'tidygraph' to make graphs
+* Use 'ggraph' to visualize graphs
+
+## Instructions:
+
+You are to complete and **upload the Rmd and knitted HTML** of this problem set on to Canvas by *9:44 AM on September 26, 2019*.
+For more information on Rmd files and knitting, please consult the following tutorial from [RStudio](https://rmarkdown.rstudio.com/articles_intro.html) or the [Introduction to R Markdown](https://canvas.harvard.edu/courses/57521/pages/introduction-to-r-markdown) tutorial the TAs have prepared.
+Code should be in the `{r #.#.#}` code chunks and text answer should be in the `txt` blocks.
+Below is an example:
+
+```{r code_0.0.9000}
+# CODE 0a
+df <- cars[1:5, ]
+nrow(df)
+```
+
+```txt
+ANSWER 0a:
+  There are 5 rows in the new data set `df`
+```
+
+If you have any pressing issues, please post on the appropriate Canvas discussion page.
+
+As with all future assignments, this problem set should be version controlled using git documented and submitted through Github (in *addition* to Canvas).
+Follow the directions below before beginning to work on the assignment:
+
+* Within the `BMI713-student-2019-<your GitHub user name>` folder that you created last week, make a subdirectory (ie. folder) within your repository called "Problem Set 3". 
+* Move your copy of the problem set R Markdown to this subdirectory in your new repository (you may want to close RStudio first so it doesn't freak out that a file it is showing is now gone).
+* Commit this change in your repository with the message (or "Summary") "add problem set R Markdown". You may also add a "Description" for the commit if you want to include additional details about the change to repository.
+* Push the changes to origin (ie. your GitHub repository online).
+* As you work on the assignment, continue making commits and pushing changes when appropriate (we'll try to give you some reminders along the way).
+
+Now, you're ready to get started!
+
+## Problem 1: Assembling a dataset (Total 22 pts)
+
+### 1.1 Revisiting NEISS (6 pts)
+
+In last week's problem set, you created a bigger and better version of the NEISS dataset by joining it with human-readable product codes, diagnoses, and body parts. This week, we're going to use that version of NEISS to explore some trends.
+
+To re-assemble the custom NEISS dataset that we used last week, you'll have to access the input files that we provided as part of last week's assignment (e.g., neiss16.tsv, neiss17.tsv, products.txt, etc.) These files should be in your Github directory for Problem Set 2 (if they aren't there already, you can move them there now). Because your Problem Set 2 code uses these files, including them in the repo makes it easier for people to reproduce your results). And now, it will help us reuse those files in Problem Set 3.
+
+**1.1.1** (2 pts) From your Problem Set 3 folder, what is the relative path to access neiss16.tsv in your Problem Set 2 folder?
+
+```txt
+Answer 1.1.1
+the path is :
+../Problemset2/lesson-04_data_files_copy/neiss2016.tsv
+
+```
+```{r code 1.1.1}
+neiss16 <- read_tsv ('../Problemset2/lesson-04_data_files_copy/neiss2016.tsv')
+```
+
+
+**1.1.2** (4 pts) Using the code from Problem Set 2, re-assemble our custom NEISS dataset (from Problem Set 2, questions 2.2.1-2.2.3). Tip: Run the code provided on Canvas in the solutions for Problem Set 2, rather than the code you wrote yourself, to ensure that you are creating the file correctly. What are the dimensions of the resulting data frame?
+
+```{r code_1.1.2}
+# Code 1.1.2
+ 
+#2.2.1 -problem set 2 
+read_data <- function(file_path) {       
+  raw_data <- read_tsv(file_path)
+  return(raw_data)
+}
+#2.2.2 -problem set 2 
+neiss16 <- read_data("../Problemset2/lesson-04_data_files_copy/neiss2016.tsv") %>% 
+  mutate(Year = "2016")
+neiss17 <- read_data("../Problemset2/lesson-04_data_files_copy/neiss2017.tsv") %>% 
+  mutate(Year = "2017")
+products <- read_data("../Problemset2/lesson-04_data_files_copy/products.txt")
+diagnoses <- read_data("../Problemset2/lesson-04_data_files_copy/diagnoses.txt")
+bdypt <- read_data("../Problemset2/lesson-04_data_files_copy/bdypt.txt")
+#2.2.3 -problem set 2
+
+# bind the rows of the two years
+
+neiss <- bind_rows(neiss16, neiss17)
+
+# confirm bind worked
+nrow(neiss) == nrow(neiss16) + nrow(neiss17)
+dim(neiss)
+
+```
+
+```txt
+Answer 1.1.2
+The dimensions are - 762104     20
+```
+
+### 1.2 Working with dates (16 pts)
+
+One trend that may be interesting to explore is how injuries change depending on the day of the week, or the month — e.g., are there more injuries in the middle of the week? Is there a higher risk for certain kinds of injuries in a specific month of the year?
+
+But, to answer questions like this, we will need to know what day of the week and what month of the year each date corresponds to.
+
+**1.2.1** (4 pts) Use the built-in `weekdays` function to get the day of the week for each treatment date, and add this information to the data frame as a new column (using the appropriate dplyr function). **Use the pipe operator to do this all in a single line of code.** What is the type of this new column of data? Tip: You will need to use the `mdy` function from the lubridate package to convert the treatment date's type.
+
+```{r code_1.2.1}
+# Code 1.2.1
+
+neiss <- neiss%>%  mutate(weekdays = weekdays(mdy(neiss$Treatment_Date),abbreviate = FALSE)) 
+class(neiss$weekdays)
+
+```
+
+```txt
+Answer 1.2.1
+weekdays() takes as in input elements that are "POSIXt" or "Date" - so I first converted the elements using mdy
+I used label =TRUE to output acutal day of week (and not number that represent it) abbr =FALSE -Ouput all the complete week day
+
+```
+
+**1.2.2** (4 pts) Instead, we actually want our days of the week to be represented as factors, because there is a limited number of possible values, and there is a natural ordering to them. Change the column with the days of the week into a factor, and set the levels to match the normal order of days of the week (Sunday, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday). If you're not sure how to do this, try `?factor`.
+
+```{r code_1.2.2}
+# Code 1.2.2
+neiss$weekdays<-factor(neiss$weekdays,c("Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"))
+class(neiss$weekdays)
+```
+
+
+
+**1.2.3** (4 pts) Working with dates can be challenging, but we can get a little help from the 'lubridate' package. If you haven't already, install the 'lubridate' package and take some time to read its documentation online. What function in lubridate is similar to the built-in `weekdays` function that we just used? Write an example of a line of code that you could write with this lubridate function to produce **human-readable** days of the week, given a list of dates.
+
+```{r code_1.2.3}
+# Code 1.2.3
+neiss_2<-neiss %>%  mutate(weekdays = wday(mdy(neiss$Treatment_Date), label = TRUE, abbr = FALSE)) 
+
+```
+
+```txt
+Answer 1.2.3
+wday function 
+
+```
+
+**1.2.4** (4 pts) Now, let's get the corresponding month for each date. Use the lubridate function `month` and make sure that your month names are human-readable. (An advantage of using lubridate here instead of the built-in function `months` is that lubridate will automatically make sure that the levels of your factors are in the correct calendar order!) Write one line of code to add a column to the data frame with the corresponding month for each treatment date.
+
+```{r code_1.2.4}
+# Code 1.2.4
+neiss <- neiss %>%  mutate(month = lubridate::month(mdy(neiss$Treatment_Date), label = TRUE, abbr = FALSE)) 
+```
+
+(A gentle reminder to commit your code to your git repo at each stage of your homework.)
+
+## Problem 2: Looking for trends (Total 42 pts)
+
+### 2.1 Tallying up the numbers (8 pts)
+
+Now, let's start looking deeper into what days and months might be more dangerous.
+
+**2.1.1** (4 pts) Using `group_by` and `summarise`, count the number of injuries on each day of the week. Which day of the week has the most injuries, and how many does it have? Which day of the week has the fewest injuries, and how many does it have?
+
+```{r code_2.1.1}
+# Code 2.1.1
+#filter the na if time 
+summary_injury_day_of_week <- neiss  %>% group_by(weekdays) %>% summarize(count=n()) %>% arrange(desc(count))
+summary_injury_day_of_week
+
+```
+```txt
+Answer 2.1.1
+
+Sunday - day with most injuries it has 114591
+Friday- day with fewest injuries it has 103714
+```
+
+**2.1.2** (4 pts) Use the same strategy to count the number of injuries in each month. Which month of the year has the most injuries, and how many does it have? Which month of the year has the fewest injuries, and how many does it have?
+
+```{r code_2.1.2}
+# Code 2.1.2
+summary_injury_month <- neiss %>% group_by(month) %>% summarize(count=n()) %>% arrange(desc(count))
+summary_injury_month
+```
+
+```txt
+Answer 2.1.2
+month of the year has the most injuries: September 70396
+month of the year has the fewest injuries:February  52869
+
+```
+
+### 2.2 Visualizing trends (20 pts)
+
+Plots may help us visualize these trends even better. We will use 'ggplot2' to make plots that highlight different aspects of the data.
+
+**2.2.1** (4 pts) Make a bar plot with 'ggplot2' that shows the number of injuries by month of the year.
+
+```{r code_2.2.1}
+# Code 2.2.1
+plot_1 <- ggplot(neiss) +
+          geom_bar(aes(x=month))+
+          theme(axis.text.x=element_text(angle= 45))
+plot_1
+```
+
+**2.2.2** (4 pts) Let's focus on injuries caused by fireworks and bicycles (specifically, "bicycles and accessories, (excl.mountain or all-terrain)"). Find the appropriate product codes and combine a filter with ggplot **in a single command** to make a bar graph with only injuries caused by these products.
+
+```{r code_2.2.2}
+# Code 2.2.2
+#view(products)
+#5040 is the code for bicycles and accessories, (excl.mountain or all-terrain) 
+#1313 is the code for fireworks
+plot_2<- ggplot(neiss  %>% filter(Product_1==5040|Product_1==1313)) +
+          geom_bar(aes(x=month))+
+          theme(axis.text.x=element_text(angle= 45))
+plot_2
+```
+
+**2.2.3** (4 pts) Fireworks and bicycles may have different temporal patterns, so update your plot to facet by the product causing the injury. (To make your plot more readable, we'd suggest faceting with the product names, rather than codes.)
+
+```{r code_2.2.3}
+# Code 2.2.3
+#labels = c("bicycles", "Fireworks")
+plot_3<- neiss %>% inner_join(products,by = c("Product_1" = "Code")) %>%filter(Product_1==5040|Product_1==1313)%>% 
+          ggplot() +
+          geom_bar(aes(x=month))+
+          facet_grid(Product~.) +
+          theme(axis.text.x=element_text(angle= 45))
+plot_3
+
+```
+
+**2.2.4** (4 pts) What if we are interested in differences between males and females, within these product categories specifically? Update your plot to both facet by the product and fill the bars by sex.
+
+```{r code_2.2.4}
+# Code 2.2.4
+
+Sex_data <- read_data("../Problemset2/lesson-04_data_files_copy/gender.txt")
+
+neiss<- neiss %>%   left_join(Sex_data,by = c("Sex" = "Code")) %>% 
+                    left_join(products,by = c("Product_1" = "Code")) %>%
+                    left_join(products,by = c("Product_2" = "Code")) 
+                    
+                    
+#because otherwise Sex in the neiss is only refered as 1 or 2 
+plot_4<- neiss  %>%  filter(Product_1==5040|Product_1==1313)%>%
+          ggplot(aes(x=month, fill=GENDER)) +
+          geom_bar(stat="count")+
+          facet_grid(Product.x~.) +
+          theme(axis.text.x=element_text(angle= 45))
+plot_4
+
+
+```
+
+```
+
+**2.2.5** (4 pts) There is a lot of information here! What are two observations you can make from this new plot, that you couldn't make from the original barplot in 2.2.1?
+
+```txt
+Answer 2.2.5
+We couldnt see the proportion for each gender and which products where causing the injuries 
+So I only focused on 2 products. Then we used Facet to help to vizualise what proportion was due to each one of those products.
+Then fill=GENDER help to vizualise for each month and category -which proportion was female injuries vs male injuries
+
+```
+
+### 2.3 Adding another layer (4 pts)
+
+The bar plot is informative, but there are other visualization strategies that can highlight trends even better. Luckily, 'ggplot' lets us layer different plots together.
+
+**2.3.1** (4 pts) Let's return to our bar plots from 2.2.4. Using `geom_line()`, add lines to the barplots that trace the number of each type of injury per month. 
+
+Tip #1: Many ggplot functions (including `geom_line()`) have a parameter called `stat` that determines how the function will calculate the values it plots. In this case, add `stat = "count"` as a parameter within your `geom_line()` command. 
+
+Tip #2: `geom_line()` also takes an aesthetic called `group` (i.e., `geom_line(aes(group = ...))` that determines which variable to group the values by when drawing the line. Set this aesthetic equal to the appropriate variable to plot one line per injury.
+
+```{r code_2.3.1}
+# Code 2.3.1
+
+plot_5<- neiss  %>%  filter(Product_1==5040|Product_1==1313)%>%
+          ggplot(aes(x=month, fill=GENDER)) +
+          geom_bar(stat="count")+
+          facet_grid(Product.x~.) +
+          geom_line(stat = "count",aes(group =Diagnosis))+
+          theme(axis.text.x=element_text(angle= 45))
+plot_5
+```
+
+```
+
+### 2.4 Changing themes (10 pts)
+
+Lastly, let's see how we can customize our bar plot with the `theme` function. This function allows us to change specific components of the plot: everything from the size of the axis labels, to the orientation of the text, and even the background and borders of the plot.
+
+**2.4.1** (10 pts) Use the documentation for the `theme` function (found [here](https://ggplot2.tidyverse.org/reference/theme.html)) and make **five changes** to your plot using the `theme` function. They can be anything you want!
+
+```{r code_2.4.1}
+# Code 2.4.1
+plot_6<- neiss  %>%  filter(Product_1==5040|Product_1==1313)%>%
+          ggplot(aes(x=month, fill=GENDER)) +
+          geom_bar(stat="count")+
+          facet_grid(Product.x~.) +
+          geom_line(stat = "count",aes(group =Diagnosis))+
+          ggtitle("Plot distribution of injuries ")+
+          xlab("Month(years=16/17)") +
+          ylab("Nb of injuries") +
+          theme(axis.text.x=element_text(angle= 45),
+          plot.title = element_text(color="red", size=14,face="bold.italic"),
+          axis.title.x= element_text(color="blue"),
+          axis.title.y=element_text(color="blue") ,
+          panel.background = element_rect(fill="white"),
+          plot.background = element_rect(fill = "lightblue")
+          )
+plot_6
+
+
+```
+```
+-change inclinaison of the month labels 
+-change the color,size and put the title in bold italic 
+-change the color of the X axis / Change the color of the Y axis - both to blue
+-panel.background to be white 
+-plot.background to be lightblue
+```
+## Question 3: Exploring co-occurrence of injuries (36 points)
+
+### 3.1 Create a co-occurrence graph (22 points)
+
+Sometimes injuries aren't caused by just one product. In these cases, the NEISS data provides the codes for both products involved. Let's have a look at the co-occurence of products in reported injuries. 
+
+**3.1.1** (10 pts) Create a tibble or data frame called `product_combinations` by grouping by both product names (i.e., for Product 1 and Product 2) and adding up the number of cases for each unique combination of products.
+
+The columns of the tibble should be `product1` (= text label of the first product, not the id), `product2`  (= text label of the second product, not the id), and `cases` (= number of times these two products were involved in an injury together). Furthermore, remove those combinations that have an `NA` value for the second product, because we're not interested in injuries that were caused by only one product. Tip: There is a function in 'dplyr' to rename columns.
+
+```{r code_3.1.1}
+# Code 3.1.1
+#Product.x and Product.y are the name of the col that contains the text label of the first and second product respectively 
+
+product_combinations <-neiss %>% filter(!is.na(Product.x)&!is.na(Product.y)) %>% group_by(Product.x,Product.y) %>% summarise(Count=n()) %>% arrange(desc(Count))
+product_combinations <- product_combinations %>% rename(product1 = Product.x) %>% rename(product2 = Product.y) %>% rename(cases = Count)
+product_combinations
+```
+
+
+
+**3.1.2** (12 pts) Create an `tidygraph` object from `product_combinations` so that each node is a product and each edge represents the co-occurences of products in an injury. The graph should have an edge attribute that represents the number of cases for that product combination. Print your `tidygraph` object and answer the following questions. (Make sure to load the 'tidygraph' package.)
+
+1. Is your graph directed or undirected?
+2. How many edges does your graph have?
+3. How many nodes does your graph have?
+
+```{r code_3.1.2}
+# Code 3.1.2
+graph<-as_tbl_graph(product_combinations,directed=FALSE) 
+#no need to precise the edges and nodes- the Last col will be used as edge and the others as node - I need to precise that the graph is directed because the default is undirected
+graph
+class(graph)
+```
+
+```txt
+Answer 3.1.2
+
+Directed graph 
+737 nodes and 17570 edges
+
+```
+
+### 3.2 Visualize co-occurrence graphs (14 points)
+
+**3.2.1** (6 pts) First, only keep the top 95th percentile (not including at 95%) of cooccurances (hint `?quantile`); this makes it easier to visualize. Continue to use this filtered graph for the rest of the problem set. After removing some edges, many nodes will not have any edges. Remove these by filtering out the nodes with degree less than 1. Then, plot the graph using the `plot` function.
+
+```{r code_3.2.1, fig.width=8, fig.height=8}
+# Code 3.2.1
+
+top_percentile_temp<-graph %>% activate(edges) %>% filter(cases>quantile(product_combinations$cases,0.95))
+top_percentile<- top_percentile_temp %>%activate(nodes)%>%mutate(degree=centrality_degree())%>%filter(degree>=1)
+class(top_percentile)
+plot(top_percentile)
+```
+
+Note how messy the plot of the graph is by default. Further, it is not easy to customize the visualization of the graph using `plot()` (for those interested, [here](https://igraph.org/r/doc/plot.common.html) are the options that can be used with `plot(some_gr, ...)`). Therefore, we recommend using the 'ggraph' package which plots graphs using 'ggplot2'.
+
+**3.2.2** (8 pts) Next, use the `ggraph` package to create a node-link diagram visualization of the graph with (a) a circular layout and (b) a Fruchterman-Rheingold layout. In both cases, nodes must be labeled using the product name and edges must encode the number of cases for the product combination using line thickness.
+
+It may (ie. will) help to set `size = 2` for `geom_node_text()` and use `scale_edge_width_continuous(range = c(0.2, 2))` to make the graph more legible.
+
+(NB: We set the `fig.width` and `fig.height` parameters of these code chunks to make the plots larger than is set by default.)
+
+```{r code_3.2.2, fig.width=8, fig.height=8}
+# Code 3.2.2 part a
+ggraph(top_percentile,layout = 'linear', circular = T) +
+  geom_node_point() + 
+  geom_edge_link(aes(width=cases)) +
+  geom_node_text(mapping=aes(label=name), size=2, repel=TRUE) +
+  scale_edge_width_continuous(range = c(0.2, 2))
+
+
+                          
+
+
+# Code 3.2.2 part b
+ggraph(top_percentile,layout = 'fr') +
+  geom_node_point() + 
+  geom_edge_link(aes(width=cases)) +
+  geom_node_text(mapping=aes(label=name), size=2, repel=TRUE) +
+  scale_edge_width_continuous(range = c(0.2, 2))
+
+```
+
+---
+
+### The 'corrr' package
+
+We would like to point out the ['corrr' package](https://github.com/tidymodels/corrr) in R that makes it easy (and tidy) to calculate correlations in a data table and plot them in intuitive networks and heatmaps.
+Check out their [GitHub repository](https://github.com/tidymodels/corrr) or this [R-bloggers post](https://www.r-bloggers.com/how-to-create-correlation-network-plots-with-corrr-and-ggraph-and-which-countries-drink-like-australia/) for examples.
+
+---
+
+## Submission Reminders
+
+* Do not change the R chunk header information (everything within `{r ... }`).
+* Enter answers into a copy of the R Markdown Problem Set assignment.
+* Only include the final code that you want graded; remove personal notes and `View(some_df)`.
+* Do **not** print out long variables (they create mile-long HTML files).
+* Make sure to submit the R Markdown *and* the knitted-HTML.
